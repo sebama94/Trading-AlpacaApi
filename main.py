@@ -1,37 +1,26 @@
 import alpaca_trade_api as tradeapi
+from Utilies.utilies import dict_credential
+from package.Deployer import Deployment
 
 # Set API credentials
-API_KEY = 'PKGDRTI7SOIC0NKE9LOB'
-API_SECRET = 'GcFBmEmMmlrqPYUv4lVV8ZgqnB8VAD8bwgBLlmOc'
-APCA_API_BASE_URL = 'https://paper-api.alpaca.markets'
+API_KEY = dict_credential["API_KEY"]
+API_SECRET = dict_credential["API_SECRET"]
+APCA_API_BASE_URL = dict_credential["APCA_API_BASE_URL"]
 
 # Create API object
-api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL)
+api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
 
-# Define stock to buy and quantity
-symbol = 'AAPL'
-quantity = 10
+def main(api_key, secret_key, symbol):
+    # Create deployment object
+    deployment = Deployment(api_key, secret_key, symbol)
+
+    # Deploy model
+    deployment.deploy_model()
 
 
+if __name__ == '__main__':
+    api_key = API_KEY
+    secret_key = API_SECRET
+    symbol = APCA_API_BASE_URL
 
-# Buy the stock
-api.submit_order(
-    symbol=symbol,
-    qty=quantity,
-    side='buy',
-    type='market',
-    time_in_force='gtc'
-)
-
-# Define stock to sell and quantity
-symbol = 'AAPL'
-quantity = 10
-
-# Sell the stock
-api.submit_order(
-    symbol=symbol,
-    qty=quantity,
-    side='sell',
-    type='market',
-    time_in_force='gtc'
-)
+    main(api_key, secret_key, symbol)
