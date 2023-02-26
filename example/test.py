@@ -1,15 +1,14 @@
 import datetime
 import threading
-
+from Utilies.utilies import dict_credential
 import alpaca_trade_api as tradeapi
 import time
 from alpaca_trade_api.rest import TimeFrame
 import pandas as pd
 
-API_KEY = "CKDHYD3AYK277A18A86D"
-API_SECRET = "1dx2n0BOmF8f9dgqao9RyE6ulbmTidf0XTvMVEUp"
-APCA_API_BASE_URL = "https://paper-api.alpaca.markets"
-
+API_KEY = dict_credential["API_KEY"]
+API_SECRET = dict_credential["API_SECRET"]
+APCA_API_BASE_URL = dict_credential["APCA_API_BASE_URL"]
 
 class LongShort:
     def __init__(self):
