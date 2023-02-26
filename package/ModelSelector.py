@@ -6,4 +6,5 @@ class ModelSelector:
         self.model = Sequential()
         self.model.add(Dense(32, input_shape=(input_shape,), activation='relu'))
         self.model.add(Dense(32, activation='relu'))
-        self.model.add(Dense(1, activation='sigmoid'))
+        self.model.add(Dense(units=32, activation='sigmoid'))
+        self.model.add(Dense(32, activation='softmax'))
