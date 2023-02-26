@@ -16,7 +16,7 @@ class Deployment:
 
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Day), start='2020-01-01', end='2020-12-31', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Day), start='1980-01-01', end='2023-02-10', adjustment='raw')
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
         return closing_price
@@ -36,9 +36,9 @@ class Deployment:
 
 
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=250, batch_size=32)
+        model_trainer.train_model(epochs=200, batch_size=64)
         #plot_model(model, to_file='model.png', show_shapes=True)
-        # model_trainer.plot()
+        model_trainer.plot()
         return model
 
     def deploy_model(self):
@@ -47,7 +47,7 @@ class Deployment:
 
         # Get current price
         current_price = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Day),
-                                                       start='2020-01-01', end='2020-12-31',adjustment='raw')[-1].c
+                                                       start='2023-01-01', end='2023-12-31',adjustment='raw')[-1].c
 
        # current_price = self.alpaca_trade_api.get_bars(self.symbol, timeframe=TimeFrame(1, TimeFrameUnit.Day),
        #                                             adjustment='raw')[-1].c

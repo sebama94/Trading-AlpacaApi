@@ -16,7 +16,7 @@ class ModelTrainer:
 
     def train_model(self, epochs, batch_size):
         #self.model.compile(loss='mse', optimizer=Adam(lr=0.001), run_eagerly=True)
-        self.model.compile(loss='mean_squared_error', metrics=['accuracy'], optimizer='adam', run_eagerly=True)
+        self.model.compile(loss='mse', metrics=['accuracy'], optimizer=Adam(learning_rate=0.001), run_eagerly=True)
         print()
         self.history = self.model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_data=(self.x_test, self.y_test))
 
@@ -34,11 +34,8 @@ class ModelTrainer:
         pyplot.legend(['train', 'test'], loc='upper left')
         # pyplot.show()
         pyplot.grid()
-
-        print(self.history.history['accuracy'])
-        print(self.history.history['val_accuracy'])
-        pyplot.plot(self.history.history['accuracy'])
-        pyplot.plot(self.history.history['val_accuracy'])
+        pyplot.plot(self.history.history['loss'])
+        pyplot.plot(self.history.history['val_loss'])
 
         # pyplot.plot(self.history)
         # pyplot.plot(self.history.history['mean_absolute_error'])
