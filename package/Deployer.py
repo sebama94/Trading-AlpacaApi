@@ -6,6 +6,10 @@ from package.ModelSelector import ModelSelector
 from package.ModelTrainer import ModelTrainer
 import alpaca_trade_api as tradeapi
 from alpaca_trade_api import TimeFrame, TimeFrameUnit
+import tensorflow as tf
+
+physical_devices = tf.config.list_physical_devices('GPU')
+print("Num GPUs Available: ", len(physical_devices))
 
 class Deployment:
     def __init__(self, api_key, secret_key, apca_api_base_url, symbol):
@@ -18,12 +22,13 @@ class Deployment:
 
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
-                                              start='2023-02-01', end='2023-02-26', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
+                                              start='2023-02-21', end='2023-02-26', adjustment='raw')
 
-
+        print(data)
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
+        print(closing_price)
         return closing_price
 
     def create_model(self):
@@ -41,9 +46,9 @@ class Deployment:
         model = model_selector.model
 
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=50, batch_size=32)
+        model_trainer.train_model(epochs=50, batch_size=64)
         #plot_model(model, to_file='model.png', show_shapes=True)
-        # model_trainer.plot()
+        model_trainer.plot()
         return model
 
     def deploy_model(self):
@@ -66,9 +71,15 @@ class Deployment:
         # self.length_batch = len(current_price)
         # print(self.length_batch)
         while True:
-            real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
-
-
+            print("sono qui ")
+            # //print(self.alpaca_trade_api.get_position(self.symbol))
+            try:
+                real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
+            except Exception as exception:
+                if exception.__str__() == 'position does not exist':
+                    print("exception")
+                    real_price = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
+                                              start='2023-02-21', end='2023-02-26', adjustment='raw')[-1].c
             # Make prediction
             prediction = model.predict(np.array([[real_price]]))
             print(f"prediction {prediction} real price {real_price}")
@@ -76,10 +87,10 @@ class Deployment:
             # Place order
             #
             if prediction > real_price:
-            #     self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market', time_in_force='gtc')
+                # self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market', time_in_force='gtc')
                 print(f"Buy order placed for {self.symbol}.")
             else:
-            #     self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
-                 print(f"Sell order placed for {self.symbol}.")
+                # self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
+                print(f"Sell order placed for {self.symbol}.")
 
-            time.sleep(1)
+            time.sleep(20)
