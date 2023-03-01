@@ -15,7 +15,7 @@ class ModelTrainer:
 
     def train_model(self, epochs, batch_size):
         #self.model.compile(loss='mse', optimizer=Adam(lr=0.001), run_eagerly=True)
-        self.model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer=Adam(learning_rate=0.001), run_eagerly=True)
+        self.model.compile(loss='mse', metrics=['accuracy'], optimizer=Adam(learning_rate=0.001), run_eagerly=True)
         self.history = self.model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_data=(self.x_test, self.y_test))
 
     def plot(self):
