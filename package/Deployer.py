@@ -10,25 +10,26 @@ from alpaca_trade_api import TimeFrame, TimeFrameUnit
 
 
 class Deployment:
-    def __init__(self, api_key, secret_key, apca_api_base_url, symbol):
+    def __init__(self, api_key, secret_key, apca_api_base_url, symbol, api):
         self.api_key = api_key
         self.secret_key = secret_key
         self.apca_api_base_url = apca_api_base_url
         self.symbol = symbol
-        self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
+        #self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
+        self.alpaca_trade_api = api
         self.length_batch = None
 
 
 
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute),
-                                              start='2023-02-21', end='2023-02-26', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
+                                              start='2023-02-12', end='2023-02-26', adjustment='raw')
 
 
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
-        print(closing_price)
+        print(self.length_batch)
         return closing_price
 
     def create_model(self):
@@ -46,9 +47,9 @@ class Deployment:
         model = model_selector.model
 
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=1000, batch_size=64)
+        model_trainer.train_model(epochs=10, batch_size=64)
         # plot_model(model, to_file='model.png', show_shapes=True)
-        model_trainer.plot()
+        #model_trainer.plot()
         return model
 
     def deploy_model(self):
@@ -83,14 +84,26 @@ class Deployment:
             # Make prediction
             prediction = model.predict(np.array([[real_price]]))
             print(f"prediction {prediction} real price {real_price}")
+           # print(self.alpaca_trade_api.get_latest_trade(self.symbol))
+            positions = self.alpaca_trade_api.list_positions()
 
+
+            # Stampa la posizione dei tuoi asset
             # Place order
             #
             if prediction > real_price:
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market', time_in_force='gtc')
+                #self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market', time_in_force='gtc')
                 print(f"Buy order placed for {self.symbol}.")
             else:
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
+                # self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
                 print(f"Sell order placed for {self.symbol}.")
+
+
+                # Get account info
+            account = self.alpaca_trade_api.get_account()
+
+            # Check our current balance vs. our balance at the last market close
+            balance_change = float(account.equity) - float(account.last_equity)
+            print(f'Today\'s portfolio balance change: ${balance_change}')
 
             time.sleep(5)
