@@ -10,10 +10,7 @@ from alpaca_trade_api import TimeFrame, TimeFrameUnit
 
 
 class Deployment:
-    def __init__(self, api_key, secret_key, apca_api_base_url, symbol, api):
-        self.api_key = api_key
-        self.secret_key = secret_key
-        self.apca_api_base_url = apca_api_base_url
+    def __init__(self, symbol, api):
         self.symbol = symbol
         #self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
         self.alpaca_trade_api = api
