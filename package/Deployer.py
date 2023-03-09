@@ -45,7 +45,8 @@ class Deployment:
 
     def deploy_model(self):
         try:
-            real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
+            #real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
+            real_price = float(self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute))[-1].c)
             # Make prediction
             prediction = self.model.predict(np.array([[real_price]]))
             print(f"prediction {prediction} real price {real_price}")

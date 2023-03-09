@@ -29,7 +29,12 @@ def thread_deploy_cryptos(symbol, api):
         # Create deployment object
         deployment = DeployementCrypto(symbol, api)
         # Deploy model
-        deployment.create_model()
+        try:
+            mutex.acquire()
+            print(f"sto eseguento quwsto thread {symbol} 1")
+            deployment.create_model()
+        finally:
+            mutex.release()
 
         while True:
             mutex.acquire()
@@ -37,13 +42,20 @@ def thread_deploy_cryptos(symbol, api):
                 deployment.deploy_model()
             finally:
                 mutex.release()
-                time.sleep(2)
+                time.sleep(0.1)
+
 
 def thread_deploy_shares(symbol, api):
     with tf.device('/device:GPU:0'):
         # Create deployment object
         deployment = Deployment(symbol, api)
-        deployment.create_model()
+        try:
+
+            mutex.acquire()
+            print(f"sto eseguento quwsto thread {symbol} 1")
+            deployment.create_model()
+        finally:
+            mutex.release()
         while True:
             # Deploy model
             mutex.acquire()
@@ -51,7 +63,7 @@ def thread_deploy_shares(symbol, api):
                 deployment.deploy_model()
             finally:
                 mutex.release()
-                time.sleep(2)
+                time.sleep(0.1)
 
 
 def thread_closure(symbol, api):
@@ -61,11 +73,11 @@ def thread_closure(symbol, api):
 if __name__ == '__main__':
     api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
     symbols_crypto = ["ETHUSD"]
-    symbols_shares = ["AAPL"]
+    symbols_shares = ["APPL"]
 
-    thread_depoly_lists_shares=[]
-    thread_depoly_lists_cryptos= []
-    thread_closure_lists=[]
+    thread_depoly_lists_shares  =   []
+    thread_depoly_lists_cryptos =   []
+    thread_closure_lists        =   []
 
     for symbol in symbols_crypto:
         thread_depoly_lists_cryptos.append(Thread(target=thread_deploy_cryptos, args=(symbol, api, )))
