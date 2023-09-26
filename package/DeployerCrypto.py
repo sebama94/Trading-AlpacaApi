@@ -18,8 +18,8 @@ class DeployementCrypto(Deployment):
             return 0
 
     def collect_data(self):
-        data = self.alpaca_trade_api.get_crypto_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
-                                                        start='2023-03-01', end='2023-03-08')
+        data = self.alpaca_trade_api.get_crypto_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
+                                                        start='2023-09-1', end='2023-09-20')
 
 
         closing_price = [bar.c for bar in data]
