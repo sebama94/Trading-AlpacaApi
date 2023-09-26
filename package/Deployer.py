@@ -10,7 +10,7 @@ from threading import Thread, Lock
 from threading import Thread, Lock
 
 class Deployment(Thread):
-    def __init__(self, symbol, api, mutex=Lock()):
+    def __init__(self, symbol, api, mutex):
         Thread.__init__(self, daemon=True)
         self.symbol = symbol
         #self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
@@ -19,12 +19,14 @@ class Deployment(Thread):
         self.model = None
         self.mutex = mutex
         self.daemon = True
+
     def __del__(self):
         print("Close program")
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
-                                              start='2023-03-01', end='2023-03-08', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
+                                              start='2023-09-10', end='2023-09-25', adjustment='raw')
+
 
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
@@ -42,7 +44,7 @@ class Deployment(Thread):
         model_selector = ModelSelector(X_train=x_train)
         model = model_selector.model
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=100, batch_size=64)
+        model_trainer.train_model(epochs=30, batch_size=64)
 
         self.model = model
 
@@ -53,8 +55,10 @@ class Deployment(Thread):
         # Make prediction
         prediction = self.model.predict(np.array([[real_price]]))
        # print(f"Symbol {self.symbol} --> Prediction {prediction} Real price {real_price}")
-        self.submit_order(prediction=prediction, real_price= real_price)
-        time.sleep(30)
+        quantity = self.get_quantity()
+        print(f"The quantity is {quantity}.")
+        self.submit_order(prediction=prediction, real_price= real_price, quantity=quantity)
+
 
     def get_bars(self):
         try:
@@ -64,24 +68,33 @@ class Deployment(Thread):
             return 0
 
 
-    def submit_order(self, prediction, real_price):
-        if prediction > real_price:
-            self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
-                                               time_in_force='gtc')
-            print(f"Buy order placed for {self.symbol} at price of {real_price}.")
-        # else:
-        #     self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market',
-        #                                        time_in_force='gtc')
-        #     print(f"Sell order placed for {self.symbol} at price of {real_price}.")
+    def submit_order(self, prediction, real_price, quantity):
+        if quantity is None:
+            if prediction > real_price and quantity >= 0:
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
+                                                   time_in_force='gtc')
+                print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price}.")
+            elif prediction < real_price and quantity <= 0:
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
+                print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price}.")
+
+    def get_quantity(self):
+        try:
+            position = self.alpaca_trade_api.get_position(self.symbol)
+            qty = position.qty  # This will give you the quantity of your position, positive for long and negative for short
+            print(f"The quantity of the position for {self.symbol} is {qty}.")
+            return int(qty)
+        except tradeapi.rest.APIError as e:
+            print(f"An error occurred: {e}")
 
     def run(self):
-        print(f"sto eseguento questo thread {self.symbol}")
+        print(f"sto eseguento questo thread {self.symbol}\n")
         self.mutex.acquire()
         try:
             self.create_model()
         finally:
             self.mutex.release()
-            time.sleep(0.1)
+            time.sleep(1)
 
         while True:
             self.mutex.acquire()
@@ -89,4 +102,4 @@ class Deployment(Thread):
                 self.deploy_model()
             finally:
                 self.mutex.release()
-                time.sleep(0.2)
+                time.sleep(1)

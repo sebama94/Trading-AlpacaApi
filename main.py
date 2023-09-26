@@ -1,7 +1,7 @@
 from Utilies.utilies import dict_credential
 from package.Deployer import Deployment
 from package.DeployerCrypto import DeployementCrypto
-
+from alpaca_trade_api import TimeFrame, TimeFrameUnit
 from package.Closure import Closure
 import tensorflow as tf
 from threading import Thread, Lock
@@ -25,20 +25,31 @@ APCA_API_BASE_URL = dict_credential["APCA_API_BASE_URL"]
 # Create API object
 global_mutex = Lock()
 
+def waiting_market():
+    while True:
+        clock = api.get_clock()
+        if clock.is_open:
+            print("The market is open.")
+            break
+        else:
+            print("The market is closed. Waiting...")
+            time_to_open = clock.next_open - clock.timestamp
+            sleep_time = time_to_open.total_seconds() / 2  # Sleep half the time remaining to market open
+            time.sleep(sleep_time)
 
 if __name__ == '__main__':
     api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
-    symbols_crypto = ["ETHUSD","DOGEUSD"]
-    symbols_shares = []
+    symbols_crypto = []
+    #symbols_shares = ["AMZN","AAPL","GOOGL","BRK.A","MSFT",]
+    symbols_shares = ["AMZN"]
     symbol_closure = symbols_crypto+symbols_shares
 
     thread_depoly_lists_shares  =   []
     thread_depoly_lists_cryptos =   []
     thread_closure_lists        =   []
 
-    for symbol in symbol_closure:
-        closure = Closure(symbol, api, mutex=global_mutex)
-        thread_closure_lists.append(closure)
+     #waiting_market()
+    closure = Closure(api=api, mutex=global_mutex)
 
     for symbol in symbols_crypto:
         with tf.device('/device:GPU:0'):
@@ -56,8 +67,9 @@ if __name__ == '__main__':
     for thread_depoly_list in thread_depoly_lists_shares:
         thread_depoly_list.start()
 
-    for thread_closure_list in thread_closure_lists:
-        thread_closure_list.start()
+   # for thread_closure_list in thread_closure_lists:
+    closure.start()
+
 
 
 
