@@ -10,7 +10,7 @@ class RSIMAStrategy:
         self.df = None
 
     def fetch_data(self):
-        self.df = self.api.get_barset(self.symbol, 'day', limit=100).df[self.symbol]
+        self.df = self.api.get_barset(self.symbol, 'minute', limit=100).df[self.symbol]
 
     def calculate_indicators(self):
         delta = self.df['close'].diff()
@@ -22,6 +22,7 @@ class RSIMAStrategy:
 
     def execute_trades(self) -> str:
         for i in range(1, len(self.df)):
+            print(f"Rsi is {self.df['rsi'][i]} and moving avg is {self.df['moving_avg'][i]}")
             if self.df['rsi'][i] < 30 and self.df['close'][i] > self.df['moving_avg'][i]:
                 print("Buy")
                 return "Buy"

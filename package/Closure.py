@@ -13,11 +13,11 @@ class Closure(Thread):
 
     def start(self):
         while True:
-            print(f"Closure prima del mutex")
+ #           print(f"Closure prima del mutex")
             self.mutex.acquire()
-            print(f"Closure dopo del mutex")
+#            print(f"Closure dopo del mutex")
             try:
-                print(f"Closure dopo del try")
+  #              print(f"Closure dopo del try")
                 self.check_and_close_positions()
             finally:
                 self.mutex.release()
