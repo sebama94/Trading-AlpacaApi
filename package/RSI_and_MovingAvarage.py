@@ -1,39 +1,36 @@
 import alpaca_trade_api as tradeapi
 import pandas as pd
-from Utilies.utilies import dict_credential
-import talib
-from alpaca_trade_api import TimeFrame, TimeFrameUnit
+import numpy as np
 
-API_KEY = dict_credential["API_KEY"]
-API_SECRET = dict_credential["API_SECRET"]
-APCA_API_BASE_URL = dict_credential["APCA_API_BASE_URL"]
 
-# Creazione del client
-api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
+class RSIMAStrategy:
+    def __init__(self, symbol, api):
+        self.symbol = symbol
+        self.api = api
+        self.df = None
 
-# Simbolo dell'asset che si vuole analizzare
-symbol = 'BTCUSD'
+    def fetch_data(self):
+        self.df = self.api.get_barset(self.symbol, 'day', limit=100).df[self.symbol]
 
-# Intervallo temporale del grafico
-timeframe = '1D'
+    def calculate_indicators(self):
+        delta = self.df['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        self.df['rsi'] = 100 - (100 / (1 + rs))
+        self.df['moving_avg'] = self.df['close'].rolling(window=20).mean()
 
-# Numero di giorni per la media mobile
-period = 50
+    def execute_trades(self) -> str:
+        for i in range(1, len(self.df)):
+            if self.df['rsi'][i] < 30 and self.df['close'][i] > self.df['moving_avg'][i]:
+                print("Buy")
+                return "Buy"
+            elif self.df['rsi'][i] > 70 and self.df['close'][i] < self.df['moving_avg'][i]:
+                print("Sell")
+                return "Sell"
 
-# Recupero dei dati storici dell'asset dal server Alpaca
-historical_data = api.get_crypto_bars( symbol, timeframe= TimeFrame(1, TimeFrameUnit.Day),
-                                start='2023-02-12', end='2023-02-26').df
 
-# Calcolo della media mobile
-sma = talib.SMA(historical_data['close'], timeperiod=period)
-
-# Calcolo dell'RSI
-rsi = talib.RSI(historical_data['close'], timeperiod=14)
-
-# Conversione dei dati in un dataframe di Pandas per una facile visualizzazione
-df = pd.DataFrame({'Close': historical_data['close'],
-                   'SMA': sma,
-                   'RSI': rsi})
-
-# Stampa del dataframe
-print(df)
+    def comupteStrategy(self) -> str:
+        self.fetch_data()
+        self.calculate_indicators()
+        return self.execute_trades()

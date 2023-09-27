@@ -40,16 +40,15 @@ def waiting_market():
 if __name__ == '__main__':
     api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
     symbols_crypto = []
-    #symbols_shares = ["AMZN","AAPL","GOOGL","BRK.A","MSFT",]
-    symbols_shares = ["AMZN"]
+    symbols_shares = ["AMZN","AAPL","GOOGL","BRK.A","MSFT","H","ADT"]
+    #symbols_shares = ["AMZN"]
     symbol_closure = symbols_crypto+symbols_shares
 
     thread_depoly_lists_shares  =   []
     thread_depoly_lists_cryptos =   []
     thread_closure_lists        =   []
 
-     #waiting_market()
-    closure = Closure(api=api, mutex=global_mutex)
+
 
     for symbol in symbols_crypto:
         with tf.device('/device:GPU:0'):
@@ -59,7 +58,10 @@ if __name__ == '__main__':
     for symbol in symbols_shares:
         with tf.device('/device:GPU:0'):
             deployment_share = Deployment(symbol, api, mutex=global_mutex)
+            deployment_share.create_model()
         thread_depoly_lists_shares.append(deployment_share)
+
+    waiting_market()
 
     for thread_depoly_list in thread_depoly_lists_cryptos:
         thread_depoly_list.start()
@@ -67,6 +69,8 @@ if __name__ == '__main__':
     for thread_depoly_list in thread_depoly_lists_shares:
         thread_depoly_list.start()
 
+
+    closure = Closure(api=api, mutex=global_mutex)
    # for thread_closure_list in thread_closure_lists:
     closure.start()
 
