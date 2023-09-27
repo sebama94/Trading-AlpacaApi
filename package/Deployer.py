@@ -26,8 +26,8 @@ class Deployment(Thread, RSIMAStrategy):
         print("Close program")
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
-                                              start='2023-09-10', end='2023-09-26', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
+                                              start='2023-09-20', end='2023-09-26', adjustment='raw')
 
 
         closing_price = [bar.c for bar in data]
@@ -46,7 +46,7 @@ class Deployment(Thread, RSIMAStrategy):
         model_selector = ModelSelector(X_train=x_train)
         model = model_selector.model
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=30, batch_size=32)
+        model_trainer.train_model(epochs=30, batch_size=64)
 
         self.model = model
 
@@ -57,8 +57,10 @@ class Deployment(Thread, RSIMAStrategy):
         # Make prediction
         prediction = self.model.predict(np.array([[real_price]]))
        # print(f"Symbol {self.symbol} --> Prediction {prediction} Real price {real_price}")
-        quantity = self.get_quantity()
+        quantity = int(self.get_quantity())
         print(f"The quantity is {quantity}.")
+        if quantity is None:
+            quantity = 0
         self.submit_order(prediction=prediction, real_price= real_price, quantity=quantity)
 
 
@@ -71,15 +73,14 @@ class Deployment(Thread, RSIMAStrategy):
 
 
     def submit_order(self, prediction, real_price, quantity):
-        if quantity is not None:
-            rsi_avg = self.comupteStrategy()
-            if prediction > real_price and quantity >= 0 and rsi_avg == "Buy":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
-                                                   time_in_force='gtc')
-                print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price}.")
-            elif prediction < real_price and quantity <= 0 and rsi_avg == "Sell":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
-                print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price}.")
+        rsi_avg = self.comupteStrategy()
+        if prediction > real_price and quantity >= 0 and rsi_avg == "Buy":
+            self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
+                                               time_in_force='gtc')
+            print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price}.")
+        elif prediction < real_price and quantity <= 0 and rsi_avg == "Sell":
+            self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
+            print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price}.")
 
     def get_quantity(self):
         try:
