@@ -38,8 +38,7 @@ class Closure(Thread):
 
         # Loop through each position to check individual P/L
         for pos in positions:
-            unrealized_pl = float(pos.unrealized_pl)
-            total_pl += unrealized_pl
+            total_pl += float(pos.unrealized_pl)
             # Check condition for closing all remaining positions
         if total_pl > 100:
             print("Total unrealized P/L is positive. Closing all positions.")
@@ -50,6 +49,8 @@ class Closure(Thread):
         # Close individual positions that are in profit
         positions = self.alpaca_trade_api.list_positions()
         for pos in positions:
+            unrealized_pl = float(pos.unrealized_pl)
+            print(f"The unrealized position is  {unrealized_pl}.")
             if unrealized_pl > 100:
                 print(f"Closing position for {pos.symbol} which is in profit.")
                 self.alpaca_trade_api.close_position(pos.symbol)

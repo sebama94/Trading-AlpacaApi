@@ -2,6 +2,7 @@ import pandas as pd
 import time
 from package.DataProcessor import DataProcessor
 import numpy as np
+from package.RSI_and_MovingAvarage import RSIMAStrategy
 from package.ModelSelector import ModelSelector
 from package.ModelTrainer import ModelTrainer
 import alpaca_trade_api as tradeapi
@@ -9,9 +10,10 @@ from alpaca_trade_api import TimeFrame, TimeFrameUnit
 from threading import Thread, Lock
 from threading import Thread, Lock
 
-class Deployment(Thread):
+class Deployment(Thread, RSIMAStrategy):
     def __init__(self, symbol, api, mutex):
         Thread.__init__(self, daemon=True)
+        RSIMAStrategy.__init__(self, symbol=symbol, api=api)
         self.symbol = symbol
         #self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
         self.alpaca_trade_api = api
@@ -24,8 +26,8 @@ class Deployment(Thread):
         print("Close program")
     def collect_data(self):
         # Collect data
-        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
-                                              start='2023-09-10', end='2023-09-25', adjustment='raw')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
+                                              start='2023-09-10', end='2023-09-26', adjustment='raw')
 
 
         closing_price = [bar.c for bar in data]
@@ -44,7 +46,7 @@ class Deployment(Thread):
         model_selector = ModelSelector(X_train=x_train)
         model = model_selector.model
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=30, batch_size=64)
+        model_trainer.train_model(epochs=30, batch_size=32)
 
         self.model = model
 
@@ -69,12 +71,13 @@ class Deployment(Thread):
 
 
     def submit_order(self, prediction, real_price, quantity):
-        if quantity is None:
-            if prediction > real_price and quantity >= 0:
+        if quantity is not None:
+            rsi_avg = self.comupteStrategy()
+            if prediction > real_price and quantity >= 0 and rsi_avg == "Buy":
                 self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
                                                    time_in_force='gtc')
                 print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price}.")
-            elif prediction < real_price and quantity <= 0:
+            elif prediction < real_price and quantity <= 0 and rsi_avg == "Sell":
                 self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market', time_in_force='gtc')
                 print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price}.")
 
@@ -87,19 +90,13 @@ class Deployment(Thread):
         except tradeapi.rest.APIError as e:
             print(f"An error occurred: {e}")
 
-    def run(self):
-        print(f"sto eseguento questo thread {self.symbol}\n")
-        self.mutex.acquire()
-        try:
-            self.create_model()
-        finally:
-            self.mutex.release()
-            time.sleep(1)
 
+    def run(self):
+        print(f"sto inizio l'escutionze {self.symbol}\n")
         while True:
             self.mutex.acquire()
             try:
                 self.deploy_model()
             finally:
                 self.mutex.release()
-                time.sleep(1)
+                time.sleep(60)
