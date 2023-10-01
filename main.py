@@ -33,14 +33,14 @@ def waiting_market():
             break
         else:
             print("The market is closed. Waiting...")
-            time_to_open = clock.next_open - clock.timestamp
-            sleep_time = time_to_open.total_seconds() / 2  # Sleep half the time remaining to market open
+            time_to_open = clock.next_open
+            sleep_time = time_to_open.total_seconds() # Sleep half the time remaining to market open
             time.sleep(sleep_time)
 
 if __name__ == '__main__':
     api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
     symbols_crypto = []
-    symbols_shares = ["AMZN","AAPL","GOOGL","BRK.A","MSFT","H","ADT"]
+    symbols_shares = ["AMZN","AAPL","GOOGL","MSFT","H","ADT", "TSLA", "NVDA", "ARM", "T", "NEE"]
     #symbols_shares = ["AMZN"]
     symbol_closure = symbols_crypto+symbols_shares
 
@@ -53,6 +53,7 @@ if __name__ == '__main__':
     for symbol in symbols_crypto:
         with tf.device('/device:GPU:0'):
             deployment_crypto = DeployementCrypto(symbol, api, mutex=global_mutex)
+            deployment_crypto.create_model()
         thread_depoly_lists_cryptos.append(deployment_crypto)
 
     for symbol in symbols_shares:
