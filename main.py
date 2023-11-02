@@ -25,53 +25,36 @@ APCA_API_BASE_URL = dict_credential["APCA_API_BASE_URL"]
 # Create API object
 global_mutex = Lock()
 
-def waiting_market():
-    while True:
-        clock = api.get_clock()
-        if clock.is_open:
-            print("The market is open.")
-            break
-        else:
-            print("The market is closed. Waiting...")
-            time_to_open = clock.next_open
-            sleep_time = time_to_open.total_seconds() # Sleep half the time remaining to market open
-            time.sleep(sleep_time)
-
 if __name__ == '__main__':
     api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
     symbols_crypto = []
-    symbols_shares = ["AMZN","AAPL","GOOGL","MSFT","H","ADT", "TSLA", "NVDA", "ARM", "T", "NEE"]
-    #symbols_shares = ["AMZN"]
+    symbols_shares = []
+    #symbols_shares = ["AMZN","AAPL","GOOGL","MSFT","H","ADT", "TSLA", "NVDA", "ARM", "T", "NEE"]
     symbol_closure = symbols_crypto+symbols_shares
 
     thread_depoly_lists_shares  =   []
     thread_depoly_lists_cryptos =   []
-    thread_closure_lists        =   []
+    # thread_closure_lists        =   []
 
+#    for symbol in symbols_crypto:
+#       with tf.device('/device:GPU:0'):
+#          deployment_crypto = DeployementCrypto(symbol, api, mutex=global_mutex, time_to_sleep = )
+#         thread_depoly_lists_cryptos.append(deployment_crypto)
 
-
-    for symbol in symbols_crypto:
-        with tf.device('/device:GPU:0'):
-            deployment_crypto = DeployementCrypto(symbol, api, mutex=global_mutex)
-            deployment_crypto.create_model()
-        thread_depoly_lists_cryptos.append(deployment_crypto)
-
-    for symbol in symbols_shares:
+    for index,symbol in enumerate(symbols_shares):
         with tf.device('/device:GPU:0'):
             deployment_share = Deployment(symbol, api, mutex=global_mutex)
-            deployment_share.create_model()
-        thread_depoly_lists_shares.append(deployment_share)
-
-    waiting_market()
-
-    for thread_depoly_list in thread_depoly_lists_cryptos:
-        thread_depoly_list.start()
-
-    for thread_depoly_list in thread_depoly_lists_shares:
-        thread_depoly_list.start()
-
+            thread_depoly_lists_shares.append(deployment_share)
 
     closure = Closure(api=api, mutex=global_mutex)
+   # closure.waiting_market()
+
+  #  for thread_depoly_list in thread_depoly_lists_cryptos:
+   #     thread_depoly_list.start()
+
+#    for thread_depoly_list in thread_depoly_lists_shares:
+#       thread_depoly_list.start()
+
    # for thread_closure_list in thread_closure_lists:
     closure.start()
 

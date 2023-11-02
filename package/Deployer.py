@@ -1,4 +1,3 @@
-import pandas as pd
 import time
 from package.DataProcessor import DataProcessor
 import numpy as np
@@ -7,21 +6,20 @@ from package.ModelSelector import ModelSelector
 from package.ModelTrainer import ModelTrainer
 import alpaca_trade_api as tradeapi
 from alpaca_trade_api import TimeFrame, TimeFrameUnit
-from threading import Thread, Lock
-from threading import Thread, Lock
+from threading import Thread, Condition
 from requests.exceptions import HTTPError
+from datetime import datetime
 
 class Deployment(Thread, RSIMAStrategy):
-    def __init__(self, symbol, api, mutex):
+    def __init__(self, symbol, api, mutex, time_to_sleep):
         Thread.__init__(self, daemon=True)
-        # RSIMAStrategy.__init__(self, symbol=symbol, api=api)
         self.symbol = symbol
-        #self.alpaca_trade_api = tradeapi.REST(self.api_key, self.secret_key, self.apca_api_base_url, api_version='v2')
         self.alpaca_trade_api = api
         self.length_batch = None
         self.model = None
         self.mutex = mutex
         self.daemon = True
+        self.time_to_sleep = time_to_sleep+301
 
     def check_investment(self) -> bool:
         # Ottieni il valore totale del portafoglio
@@ -35,7 +33,7 @@ class Deployment(Thread, RSIMAStrategy):
         #    print(f"capitale totale {total_equity}")
         except Exception as e:
             print(f"Errore nel recuperare la posizione: {e}")
-            return False
+            #return False
 
         asset_value = float(position.market_value)  # Valore investito nell'asset
         #print(f"account value {account} e capitale totale {total_equity} e asset value {asset_value}")
@@ -52,9 +50,9 @@ class Deployment(Thread, RSIMAStrategy):
     def collect_data(self):
         # Collect data
 
-        data = self.alpaca_trade_api.get_bars(self.symbol, limit=1,  timeframe= TimeFrame(1, TimeFrameUnit.Minute),
-                                              start='2023-01-03', end='2023-01-03', adjustment='raw')
-        print(data)
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute),
+                                              start='2023-10-15', end='2023-10-31', adjustment='raw')
+
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
         return closing_price
@@ -71,10 +69,8 @@ class Deployment(Thread, RSIMAStrategy):
         model_selector = ModelSelector(X_train=x_train)
         model = model_selector.model
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
-        model_trainer.train_model(epochs=100, batch_size=64)
-
+        model_trainer.train_model(epochs=30, batch_size=32)
         self.model = model
-
 
     def deploy_model(self):
         #real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
@@ -89,28 +85,28 @@ class Deployment(Thread, RSIMAStrategy):
         else:
             quantity = float(qty)
 
-        if self.check_investment() is True:
+       # if self.check_investment() is True:
             #print(f"The quantity is {quantity}.")
-            self.submit_order(prediction=prediction, real_price=real_price, quantity=quantity)
+        self.submit_order(prediction=prediction, real_price=real_price, quantity=quantity)
 
     def get_bars(self):
         try:
-            return float(self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute))[-1].c)
+            return float(self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute))[-1].c)
         except Exception as exception:
             print(f"[ERROR] exception {exception}. Symbol {self.symbol}")
             return 0
 
     def submit_order(self, prediction, real_price, quantity):
-        # rsi_avg = self.comupteStrategy()
+        # rsi_avg = self.comupteStrategy(symbol="AMZN", api=api)
         try:
-            if prediction > real_price and quantity >= 0: #and rsi_avg == "Buy":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
+            if prediction > real_price and quantity >= 0: # and rsi_avg == "Buy":
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=100, side='buy', type='market',
                                                    time_in_force='gtc')
-                print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price} and quantity {quantity}")
+                #print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price} and quantity {quantity}")
             elif prediction < real_price and quantity <= 0: # and rsi_avg == "Sell":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market',
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=100, side='sell', type='market',
                                                    time_in_force='gtc')
-                print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price} and quantity {quantity}")
+                #print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price} and quantity {quantity}")
         except Exception as exception:
             print(f"[ERROR] exception submit_order {exception}. Symbol {self.symbol}")
         except HTTPError as http_err:
@@ -133,13 +129,24 @@ class Deployment(Thread, RSIMAStrategy):
              #   print("The market is open.")
                 break
             else:
-                print("The market is closed. Waiting...")
-                time_to_open = clock.next_open - clock.timestamp
-                sleep_time = time_to_open.total_seconds() / 2  # Sleep half the time remaining to market open
-                time.sleep(sleep_time)
+                condition = Condition()
+                with condition:
+                    future_timestamp_str = clock.next_open
+                    # Convert the string to a datetime object, taking into account the time zone
+                    future_dt_object = datetime.fromisoformat(str(future_timestamp_str))
+                    # Convert future time to UTC
+                    future_utc_dt_object = future_dt_object.astimezone(pytz.UTC)
+                    # Get current UTC time
+                    current_utc_dt_object = datetime.now(pytz.UTC)
+                    # Calculate the difference in seconds
+                    time_to_open = (future_utc_dt_object - current_utc_dt_object).total_seconds()
+                    print(f"The market is closed. Waiting... {time_to_open} seconds")
+                    condition.wait(timeout=time_to_open)
+                    print(f"Condition")
 
     def run(self):
-        #print(f"sto inizio l'escutionze {self.symbol}\n")
+        print(f"sto inizio l'escutionze {self.symbol}\n")
+        self.create_model()
         while True:
             self.waiting_market()
             self.mutex.acquire()
@@ -147,4 +154,4 @@ class Deployment(Thread, RSIMAStrategy):
                 self.deploy_model()
             finally:
                 self.mutex.release()
-                time.sleep(65)
+                time.sleep(self.time_to_sleep )

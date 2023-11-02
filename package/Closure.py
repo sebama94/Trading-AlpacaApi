@@ -1,5 +1,7 @@
 import time
-from threading import Thread, Lock
+from threading import Thread, Condition
+from datetime import datetime
+import pytz
 import alpaca_trade_api as tradeapi
 
 
@@ -20,46 +22,41 @@ class Closure(Thread):
             print("No open positions.")
             return
 
-        # Initialize total P/L
         total_pl = 0.0
-
-        # Loop through each position to check individual P/L
-        for pos in positions:
-            total_pl += float(pos.unrealized_pl)
-            # Check condition for closing all remaining positions
-        if total_pl > 100:
-           # print("Total unrealized P/L is positive. Closing all positions.")
-            # Fetch updated list of open positions
-            # positions = self.api.list_positions()
-            self.alpaca_trade_api.close_position(pos.symbol)
-            return
-
-        #print("Total unrealized P/L is not positive. Not closing all positions.")
-        # Close individual positions that are in profit
-        time.sleep(3)
-        positions = self.alpaca_trade_api.list_positions()
-        # Check if there are no open positions
-        if not positions:
-            print("No open positions.")
-            return
 
         for pos in positions:
             unrealized_pl = float(pos.unrealized_pl)
-            #print(f"The symbol {pos.symbol} have unrealized position equal to {unrealized_pl}.")
-            if unrealized_pl > 50:
-              #  print(f"Closing position for {pos.symbol} which is in profit.")
+            if unrealized_pl > 100:
+                print(f"Closing position for {pos.symbol}. Profit: {unrealized_pl}")
                 self.alpaca_trade_api.close_position(pos.symbol)
+                return
+            total_pl += float(pos.unrealized_pl)
+        if total_pl > 1000:
+            print(f"Total unrealized P/L is positive. Closing all positions. Total profit is {total_pl}")
+            for pos in positions:
+                self.alpaca_trade_api.close_position(pos.symbol)
+            time.sleep(400)
+            return
     def waiting_market(self):
         while True:
             clock = self.alpaca_trade_api.get_clock()
             if clock.is_open:
-                # print("The market is open.")
                 break
             else:
-                print("The market is closed. Waiting...")
-                time_to_open = clock.next_open
-                sleep_time = time_to_open.total_seconds()  # Sleep half the time remaining to market open
-                time.sleep(sleep_time)
+                condition = Condition()
+                with condition:
+                    future_timestamp_str = clock.next_open
+                    # Convert the string to a datetime object, taking into account the time zone
+                    future_dt_object = datetime.fromisoformat(str(future_timestamp_str))
+                    # Convert future time to UTC
+                    future_utc_dt_object = future_dt_object.astimezone(pytz.UTC)
+                    # Get current UTC time
+                    current_utc_dt_object = datetime.now(pytz.UTC)
+                    # Calculate the difference in seconds
+                    time_to_open = (future_utc_dt_object - current_utc_dt_object).total_seconds()
+                    print(f"The market is closed. Waiting... {time_to_open} seconds")
+                    condition.wait(timeout=time_to_open)
+                    print(f"Condition")
 
     def start(self):
         while True:
@@ -69,7 +66,7 @@ class Closure(Thread):
                 self.check_and_close_positions()
             finally:
                 self.mutex.release()
-                time.sleep(10)
+                time.sleep(30)
 
 
 

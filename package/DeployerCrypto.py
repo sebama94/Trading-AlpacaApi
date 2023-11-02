@@ -11,15 +11,15 @@ class DeployementCrypto(Deployment):
         Thread.__init__(self, daemon=True)
     def get_bars(self):
         try:
-            return float(self.alpaca_trade_api.get_crypto_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute))[-1].c)
+            return float(self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute))[-1].c)
         except Exception as exception:
             print(f"[ERROR] exception {exception}. Symbol {self.symbol}")
             time.sleep(1)
             return 0
 
     def collect_data(self):
-        data = self.alpaca_trade_api.get_crypto_bars(self.symbol, timeframe= TimeFrame(15, TimeFrameUnit.Minute),
-                                                        start='2023-09-1', end='2023-09-20')
+        data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(1, TimeFrameUnit.Minute),
+                                                        start='2023-10-15', end='2023-10-29')
 
 
         closing_price = [bar.c for bar in data]
