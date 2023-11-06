@@ -1,7 +1,10 @@
+import os.path
 import time
+
+import pytz
+from keras.models import load_model
 from package.DataProcessor import DataProcessor
 import numpy as np
-from package.RSI_and_MovingAvarage import RSIMAStrategy
 from package.ModelSelector import ModelSelector
 from package.ModelTrainer import ModelTrainer
 import alpaca_trade_api as tradeapi
@@ -9,9 +12,10 @@ from alpaca_trade_api import TimeFrame, TimeFrameUnit
 from threading import Thread, Condition
 from requests.exceptions import HTTPError
 from datetime import datetime
+from package.RSI_and_MovingAvarage import RSIMAStrategy
 
-class Deployment(Thread, RSIMAStrategy):
-    def __init__(self, symbol, api, mutex, time_to_sleep):
+class Deployment(Thread):
+    def __init__(self, symbol, api, mutex, time_to_sleep, data_start_analyze, data_end_amalyze):
         Thread.__init__(self, daemon=True)
         self.symbol = symbol
         self.alpaca_trade_api = api
@@ -19,7 +23,10 @@ class Deployment(Thread, RSIMAStrategy):
         self.model = None
         self.mutex = mutex
         self.daemon = True
-        self.time_to_sleep = time_to_sleep+301
+        self.time_to_sleep = time_to_sleep
+        # self.rsi_and_avarage = RSIMAStrategy()
+        self.data_start_analyze = data_start_analyze
+        self.data_end_amalyze = data_end_amalyze
 
     def check_investment(self) -> bool:
         # Ottieni il valore totale del portafoglio
@@ -49,10 +56,9 @@ class Deployment(Thread, RSIMAStrategy):
         print("Close program")
     def collect_data(self):
         # Collect data
-
         data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute),
-                                              start='2023-10-15', end='2023-10-31', adjustment='raw')
-
+                                              start=self.data_start_analyze, end=self.data_end_amalyze, adjustment='raw')
+        # self.rsi_and_avarage.fetch_data(data=data)
         closing_price = [bar.c for bar in data]
         self.length_batch = len(closing_price)
         return closing_price
@@ -71,42 +77,40 @@ class Deployment(Thread, RSIMAStrategy):
         model_trainer = ModelTrainer(model, x_train= x_train, y_train=y_train, x_test=x_test, y_test=y_test)
         model_trainer.train_model(epochs=30, batch_size=32)
         self.model = model
+        # print(f"Saving model {self.symbol}")
+        # model.save("model/"+self.symbol+".h5")
 
     def deploy_model(self):
-        #real_price = float(self.alpaca_trade_api.get_position(self.symbol).current_price)
         real_price = self.get_bars()
-        # Make prediction
         prediction = self.model.predict(np.array([[real_price]]))
-       # print(f"Symbol {self.symbol} --> Prediction {prediction} Real price {real_price}")
-
         qty = self.get_quantity()
         if qty is None:
             quantity = 0
         else:
             quantity = float(qty)
-
-       # if self.check_investment() is True:
-            #print(f"The quantity is {quantity}.")
         self.submit_order(prediction=prediction, real_price=real_price, quantity=quantity)
 
     def get_bars(self):
         try:
-            return float(self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute))[-1].c)
+            data = self.alpaca_trade_api.get_bars(self.symbol, timeframe= TimeFrame(5, TimeFrameUnit.Minute)).df.iloc[0]
+            # self.rsi_and_avarage.refresh_latest_bars(data=data)
+           # print(f"this is data {data}")
+            return float(data['close'])
         except Exception as exception:
             print(f"[ERROR] exception {exception}. Symbol {self.symbol}")
             return 0
 
     def submit_order(self, prediction, real_price, quantity):
-        # rsi_avg = self.comupteStrategy(symbol="AMZN", api=api)
+        # rsi_avg = self.rsi_and_avarage.comupteStrategy()
         try:
             if prediction > real_price and quantity >= 0: # and rsi_avg == "Buy":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=100, side='buy', type='market',
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
                                                    time_in_force='gtc')
-                #print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price} and quantity {quantity}")
+                print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price} and quantity {quantity}")
             elif prediction < real_price and quantity <= 0: # and rsi_avg == "Sell":
-                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=100, side='sell', type='market',
+                self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market',
                                                    time_in_force='gtc')
-                #print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price} and quantity {quantity}")
+                print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price} and quantity {quantity}")
         except Exception as exception:
             print(f"[ERROR] exception submit_order {exception}. Symbol {self.symbol}")
         except HTTPError as http_err:
@@ -154,4 +158,4 @@ class Deployment(Thread, RSIMAStrategy):
                 self.deploy_model()
             finally:
                 self.mutex.release()
-                time.sleep(self.time_to_sleep )
+                time.sleep(self.time_to_sleep+301)

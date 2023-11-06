@@ -31,3 +31,7 @@
 *.out
 *.app
 *.idea
+
+# Model
+*.h5
+model

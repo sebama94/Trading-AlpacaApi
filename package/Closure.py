@@ -26,16 +26,17 @@ class Closure(Thread):
 
         for pos in positions:
             unrealized_pl = float(pos.unrealized_pl)
-            if unrealized_pl > 100:
-                print(f"Closing position for {pos.symbol}. Profit: {unrealized_pl}")
+            if unrealized_pl > 10:
+                print(f"Closing position {pos.symbol}. Profit: {unrealized_pl}")
                 self.alpaca_trade_api.close_position(pos.symbol)
                 return
             total_pl += float(pos.unrealized_pl)
-        if total_pl > 1000:
+        if total_pl > 5:
             print(f"Total unrealized P/L is positive. Closing all positions. Total profit is {total_pl}")
             for pos in positions:
+                print(f"Closing position {pos.symbol}. Profit: {pos.unrealized_pl}")
                 self.alpaca_trade_api.close_position(pos.symbol)
-            time.sleep(400)
+                time.sleep(0.1)
             return
     def waiting_market(self):
         while True:
@@ -54,9 +55,9 @@ class Closure(Thread):
                     current_utc_dt_object = datetime.now(pytz.UTC)
                     # Calculate the difference in seconds
                     time_to_open = (future_utc_dt_object - current_utc_dt_object).total_seconds()
-                    print(f"The market is closed. Waiting... {time_to_open} seconds")
+                    #print(f"The market is closed. Waiting... {time_to_open} seconds")
                     condition.wait(timeout=time_to_open)
-                    print(f"Condition")
+                    #print(f"Condition")
 
     def start(self):
         while True:
@@ -66,7 +67,7 @@ class Closure(Thread):
                 self.check_and_close_positions()
             finally:
                 self.mutex.release()
-                time.sleep(30)
+                time.sleep(10)
 
 
 
