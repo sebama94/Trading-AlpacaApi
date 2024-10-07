@@ -26,18 +26,18 @@ class Closure(Thread):
 
         for pos in positions:
             unrealized_pl = float(pos.unrealized_pl)
-            if unrealized_pl > 10:
-                print(f"Closing position {pos.symbol}. Profit: {unrealized_pl}")
+            if unrealized_pl > 5:
+                print(f"Time {datetime.now():%Y-%m-%d %H:%M:%S} | Closing position {pos.symbol}. Profit: {unrealized_pl}")
                 self.alpaca_trade_api.close_position(pos.symbol)
-                return
-            total_pl += float(pos.unrealized_pl)
-        if total_pl > 5:
-            print(f"Total unrealized P/L is positive. Closing all positions. Total profit is {total_pl}")
-            for pos in positions:
-                print(f"Closing position {pos.symbol}. Profit: {pos.unrealized_pl}")
-                self.alpaca_trade_api.close_position(pos.symbol)
-                time.sleep(0.1)
-            return
+#                return
+#            total_pl += float(pos.unrealized_pl)
+#        if total_pl > 2:
+#            print(f"Total unrealized P/L is positive. Closing all positions. Total profit is {total_pl}")
+#            for pos in positions:
+#                print(f"Time {datetime.now():%Y-%m-%d %H:%M:%S} | Closing position {pos.symbol}. Profit: {pos.unrealized_pl}")
+#                self.alpaca_trade_api.close_position(pos.symbol)
+#                time.sleep(0.05)
+#            return
     def waiting_market(self):
         while True:
             clock = self.alpaca_trade_api.get_clock()

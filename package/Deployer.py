@@ -103,11 +103,11 @@ class Deployment(Thread):
     def submit_order(self, prediction, real_price, quantity):
         # rsi_avg = self.rsi_and_avarage.comupteStrategy()
         try:
-            if prediction > real_price and quantity >= 0: # and rsi_avg == "Buy":
+            if prediction > real_price+0.01 and quantity >= 0: # and rsi_avg == "Buy":
                 self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='buy', type='market',
                                                    time_in_force='gtc')
                 print(f"Buy order placed for {self.symbol} at predicted price: {prediction} > real: {real_price} and quantity {quantity}")
-            elif prediction < real_price and quantity <= 0: # and rsi_avg == "Sell":
+            elif prediction < real_price-0.01 and quantity <= 0: # and rsi_avg == "Sell":
                 self.alpaca_trade_api.submit_order(symbol=self.symbol, qty=1, side='sell', type='market',
                                                    time_in_force='gtc')
                 print(f"Sell order placed for {self.symbol} at predicted price: {prediction} < real: {real_price} and quantity {quantity}")
